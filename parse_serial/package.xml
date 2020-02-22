@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package format="2">
+  <name>parse_serial</name>
+  <version>0.1.0</version>
+  <description>The parse_serial package reads serial stream over uart, parses information into 3 groups of messages and pubslishes them.</description>
+  <maintainer email="yunus.ikiz@ieee.metu.edu.tr">yemreikiz</maintainer>
+  <license>BSD</license>
+  <url type="website">http://github.com/yemreikiz</url>
+
+  <author email="yunus.ikiz@ieee.metu.edu.tr">Yunus Emre Ikiz</author>
+
+  <buildtool_depend>catkin</buildtool_depend>
+  <build_depend>roscpp</build_depend>
+  <build_depend>serial</build_depend>
+  <build_depend>std_msgs</build_depend>
+  <build_depend>message_generation</build_depend>
+  <build_export_depend>roscpp</build_export_depend>
+  <build_export_depend>serial</build_export_depend>
+  <build_export_depend>std_msgs</build_export_depend>
+  <exec_depend>roscpp</exec_depend>
+  <exec_depend>serial</exec_depend>
+  <exec_depend>std_msgs</exec_depend>
+  <exec_depend>message_runtime</exec_depend>
+
+</package>
