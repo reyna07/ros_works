@@ -3,119 +3,180 @@
  * @brief: Parse data provided through UART serial stream into 3 groups and publish
  * @author: yemreikiz
  * */
-#include <ros/ros.h>
-#include <serial/serial.h>
-#include <std_msgs/String.h>
-#include <parse_serial/K_Personel.h>
-#include <parse_serial/K_Asset.h>
-#include <sstream>
+#include "parse_serial.h"
 
-serial::Serial ser;
-
-int main(int argc, char **argv)
+/**
+ * @brief: parseSerial constructor
+ * */
+parseSerial::parseSerial(ros::NodeHandle &n)
 {
-    ros::init(argc, argv, "parse_serial_node");
-    ros::NodeHandle n;
+  p_pub = n.advertise<parse_serial::K_Personel>("personel", 1);
 
-    ros::Publisher p_pub = n.advertise<parse_serial::K_Personel>("personel", 1);
+  a_pub = n.advertise<parse_serial::K_Asset>("asset", 1);
 
-    ros::Publisher a_pub = n.advertise<parse_serial::K_Asset>("asset", 1);
+  u_pub = n.advertise<std_msgs::String>("update", 1);
 
-    ros::Publisher u_pub = n.advertise<std_msgs::String>("update", 1);
-
-    try
-    {
-        ser.setPort("/dev/ttyACM0");
-        ser.setBaudrate(9600);
-        serial::Timeout tout = serial::Timeout::simpleTimeout(1000); //timeout in ms
-        ser.setTimeout(tout);
-        ser.open();
-    }
-    catch (serial::IOException &e)
-    {
-        ROS_ERROR_STREAM("Unable to open port ");
-        return -1;
-    }
-    if (ser.isOpen())
-    {
-        ROS_INFO_STREAM("Serial Port initialized");
-    }
-    else
-    {
-        return -1;
-    }
-
-    ros::Rate loop_rate(5);
-
-    while (ros::ok())
-    {
-        ros::spinOnce();
-
-        if (ser.available())
-        {
-            ROS_INFO_STREAM("Reading from serial port");
-            std::string serInput;
-            serInput = ser.read(ser.available());
-            ROS_INFO_STREAM("Read: " << serInput.data());
-            //serialParser(serInput,0,p_pub, a_pub, u_pub);
-        }
-    }
-    return 0;
+  try
+  {
+    ser.setPort("/dev/ttyS19");
+    ser.setBaudrate(9600);
+    serial::Timeout tout = serial::Timeout::simpleTimeout(1000); //timeout in ms
+    ser.setTimeout(tout);
+    ser.open();
+  }
+  catch (serial::IOException &e)
+  {
+    ROS_ERROR_STREAM("Unable to open port ");
+    return;
+  }
+  if (ser.isOpen())
+  {
+    ROS_INFO_STREAM("Serial Port initialized");
+  }
+  else
+  {
+    ROS_ERROR_STREAM("Unable to open port ");
+  }
 }
-
 /**
  * @brief: Parses an input string based on $$your_message,elementA,elementB** convention
  * @param: Input string passed by reference.
  * */
-void serialParser(const std::string &input, int start_pos, ros::Publisher& p_pub, ros::Publisher& a_pub, ros::Publisher& u_pub)
+void parseSerial::serialParser()
 {
-    int pos = input.find("$$");
-    std::string field;
+  std::string field;
+  int pos = 0; //iterator
+  while (inputString[pos] != ',' && pos < (inputString.size() - 1) )
+  {
+    field += inputString[pos++];
+  }
+  pos++;
+  if (field.compare("K_Personel") == 0 )
+  {
+    parse_serial::K_Personel new_personel;
+    std::string temp;
+    //get name
+    while (inputString[pos] != ',' && pos < inputString.size() - 1)
+      new_personel.name += inputString[pos++];
+      pos++;
+    //get age
+    while (inputString[pos] != ',' && pos < inputString.size() - 1)
+      temp += inputString[pos++];
+      pos++;
+    new_personel.age = std::stoi(temp);
+    temp.clear();
+    //get weight
+    while (inputString[pos] != ',' && pos < inputString.size() - 1)
+      temp += inputString[pos++];
+      pos++;
+    new_personel.weight = std::stof(temp);
+    temp.clear();
+    //get height
+    while (pos <= inputString.size() - 1)
+      temp += inputString[pos++];
+    new_personel.height = std::stoi(temp);
 
-    if (pos != std::string::npos)
+    /*Publish output before leaving*/
+    p_pub.publish(new_personel);
+  }
+  else if (field.compare("K_Asset") == 0)
+  {
+    parse_serial::K_Asset new_asset;
+    std::string temp = "";
+    //get ID
+    while (inputString[pos] != ',' && pos < inputString.size() - 1)
+      temp += inputString[pos++];
+    pos++;
+    new_asset.assetID = std::stoi(temp);
+    temp.clear();
+    //get location
+    while (inputString[pos] != ',' && pos < inputString.size() - 1)
+      temp += inputString[pos++];
+    new_asset.location = temp;
+    temp.clear();
+
+    /*Publish output before leaving*/
+    a_pub.publish(new_asset);
+  }
+  else if (field.compare("K_Update") == 0)
+  {
+    std::string data = "Update";
+    std_msgs::String msg;
+    msg.data = data;
+    u_pub.publish(msg);
+  }
+  else
+  {
+    ROS_INFO("'%s'", field.c_str());
+    ROS_INFO("Received message with proper format but unrecognized field type.");
+  }
+}
+
+/**
+ * @brief: Captures an input string based on $$your_message,elementA,elementB** convention.
+ * */
+bool parseSerial::serialReadwMarkers()
+{
+  static bool recvInProgress = false;
+  static uint8_t ndx = 0;
+  std::string startS = "$$";
+  std::string endS = "**";
+  std::string rc;
+  while (ser.available() > 0 && newData == false)
+  {
+    rc = ser.read(1);
+    recWindow[0] = recWindow[1];
+    recWindow[1] = rc[0];
+    //ROS_INFO("recWindow: %s",recWindow.c_str());
+    if (recvInProgress == true)
     {
-        pos += 2; //actual position of data
-        while (input[pos] != ',')
+      if (recWindow.compare(endS) != 0)
+      {
+        inputString += rc;
+        ndx++;
+        if (ndx >= 1024)
         {
-            field += input[pos++];
+          recvInProgress = false;
+          ndx = 0;
+          newData = true;
         }
-        if (field == "K_Personel")
-        {
-            parse_serial::K_Personel new_personel;
-            std::string temp;
-            //get name
-            while (input[pos] != ',' && pos < input.size() - 1)   new_personel.name += input[pos++];
-            //get age
-            while (input[pos] != ',' && pos < input.size() - 1)   temp += input[pos++];
-            new_personel.age = std::stoi(temp);
-            temp.clear();
-            //get weight
-            while (input[pos] != ',' && pos < input.size() - 1)   temp += input[pos++];
-            new_personel.weight = std::stof(temp);
-            temp.clear();
-            //get height
-            while (input[pos] != '*' && pos < input.size() - 1)   temp += input[pos++];
-            new_personel.height = std::stoi(temp);
-            
-            if(input[pos] != '*')//data package is not complete
-            {
-                /* code */
-            }
-            
-            pos+=2;         //beginning of the next package
+      }
+      else
+      {
+        inputString[inputString.length() - 1] = '\0'; //remove the excess endmarkers recorded in the inputString
 
-            /*Publish output before leaving*/
-            p_pub.publish(new_personel);
-
-            if (pos == input.size() - 1)    //end of input stream, exit case
-            {
-                return;
-            }
-            else       //finish input recursively
-            {
-                serialParser(input, pos, p_pub, a_pub, u_pub);
-            }
-            
-        }
+        recvInProgress = false;
+        ndx = 0;
+        newData = true;
+      }
     }
+    else if (recWindow.compare(startS) == 0)
+    {
+      recvInProgress = true;
+    }
+  }
+  return newData;
+}
+
+
+int main(int argc, char **argv)
+{
+  ros::init(argc, argv, "parse_serial_node");
+  ros::NodeHandle n;
+  parseSerial ps(n);
+
+  ros::Rate loop_rate(5);
+
+  while (ros::ok())
+  {
+    ros::spinOnce();
+    if(ps.serialReadwMarkers())
+    {
+      ps.serialParser();
+      ps.newData = false;
+      ps.inputString.clear();
+      ps.recWindow = "  ";
+    }
+  }
+  return 0;
 }
