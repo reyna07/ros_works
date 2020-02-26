@@ -1,0 +1,6 @@
+<launch>
+  <node name="parse_serial_node" pkg="parse_serial" type="parse_serial_node">
+    <param name="port_name" value="/dev/ttyS19"/>
+    <param name="baud_rate" value="9600"/>
+  <node/>
+</launch>
