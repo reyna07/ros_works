@@ -24,7 +24,9 @@ being published periodically. Then the corresponding port is listened and publis
 End of documentation.
 
 *Author*: Yunus Emre İkiz
+
 *email*: yunus.ikiz@ieee.metu.edu.tr
+
 *date*: 26.02.2020 
 
 *Ne mutlu Türk'üm diyene!*
