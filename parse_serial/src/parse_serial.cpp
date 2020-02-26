@@ -16,10 +16,30 @@ parseSerial::parseSerial(ros::NodeHandle &n)
 
   u_pub = n.advertise<std_msgs::String>("update", 1);
 
+  std::string port_name;
+  if (n.getParam("port_name", port_name, "/dev/ttyS19"))
+  {
+    ROS_INFO("Got param: %s", port_name.c_str());
+  }
+  else
+  {
+    ROS_ERROR("Failed to get param 'port_name'");
+  }
+
+  uint32_t baud_rate;
+  if (n.getParam("port_name", baud_rate, 9600))
+  {
+    ROS_INFO("Got param baud_rate: %x", baud_rate);
+  }
+  else
+  {
+    ROS_ERROR("Failed to get param 'baud_rate'");
+  }
+
   try
   {
-    ser.setPort("/dev/ttyS19");
-    ser.setBaudrate(9600);
+    ser.setPort(port_name);
+    ser.setBaudrate(baud_rate);
     serial::Timeout tout = serial::Timeout::simpleTimeout(1000); //timeout in ms
     ser.setTimeout(tout);
     ser.open();
@@ -46,29 +66,29 @@ void parseSerial::serialParser()
 {
   std::string field;
   int pos = 0; //iterator
-  while (inputString[pos] != ',' && pos < (inputString.size() - 1) )
+  while (inputString[pos] != ',' && pos < (inputString.size() - 1))
   {
     field += inputString[pos++];
   }
   pos++;
-  if (field.compare("K_Personel") == 0 )
+  if (field.compare("K_Personel") == 0)
   {
     parse_serial::K_Personel new_personel;
     std::string temp;
     //get name
     while (inputString[pos] != ',' && pos < inputString.size() - 1)
       new_personel.name += inputString[pos++];
-      pos++;
+    pos++;
     //get age
     while (inputString[pos] != ',' && pos < inputString.size() - 1)
       temp += inputString[pos++];
-      pos++;
+    pos++;
     new_personel.age = std::stoi(temp);
     temp.clear();
     //get weight
     while (inputString[pos] != ',' && pos < inputString.size() - 1)
       temp += inputString[pos++];
-      pos++;
+    pos++;
     new_personel.weight = std::stof(temp);
     temp.clear();
     //get height
@@ -125,9 +145,9 @@ bool parseSerial::serialReadwMarkers()
   while (ser.available() > 0 && newData == false)
   {
     rc = ser.read(1);
+    //recWindow looks for the markers
     recWindow[0] = recWindow[1];
     recWindow[1] = rc[0];
-    //ROS_INFO("recWindow: %s",recWindow.c_str());
     if (recvInProgress == true)
     {
       if (recWindow.compare(endS) != 0)
@@ -143,7 +163,7 @@ bool parseSerial::serialReadwMarkers()
       }
       else
       {
-        inputString[inputString.length() - 1] = '\0'; //remove the excess endmarkers recorded in the inputString
+        inputString[inputString.length() - 1] = '\0'; //remove the excess endmarker recorded in the inputString
 
         recvInProgress = false;
         ndx = 0;
@@ -158,7 +178,6 @@ bool parseSerial::serialReadwMarkers()
   return newData;
 }
 
-
 int main(int argc, char **argv)
 {
   ros::init(argc, argv, "parse_serial_node");
@@ -170,12 +189,11 @@ int main(int argc, char **argv)
   while (ros::ok())
   {
     ros::spinOnce();
-    if(ps.serialReadwMarkers())
+    if (ps.serialReadwMarkers())
     {
       ps.serialParser();
-      ps.newData = false;
-      ps.inputString.clear();
-      ps.recWindow = "  ";
+      //cleanup before running again to prevent memory leaks
+      ps.clearData();
     }
   }
   return 0;
