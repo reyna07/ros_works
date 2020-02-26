@@ -17,7 +17,7 @@ parseSerial::parseSerial(ros::NodeHandle &n)
   u_pub = n.advertise<std_msgs::String>("update", 1);
 
   std::string port_name;
-  if (n.getParam("port_name", port_name, "/dev/ttyS19"))
+  if (n.param<std::string>("port_name", port_name, "/dev/ttyS19"))
   {
     ROS_INFO("Got param: %s", port_name.c_str());
   }
@@ -26,8 +26,8 @@ parseSerial::parseSerial(ros::NodeHandle &n)
     ROS_ERROR("Failed to get param 'port_name'");
   }
 
-  uint32_t baud_rate;
-  if (n.getParam("port_name", baud_rate, 9600))
+  int baud_rate;
+  if (n.param("baud_rate", baud_rate, 9600))
   {
     ROS_INFO("Got param baud_rate: %x", baud_rate);
   }
