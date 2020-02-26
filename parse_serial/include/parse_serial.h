@@ -14,13 +14,21 @@ public:
     parseSerial(ros::NodeHandle& n);
     void serialParser();
     bool serialReadwMarkers();
+    //inlined for that its less than 10 lines
+    void clearData()
+    {
+        inputString.clear();
+        bool newData = false;
+        recWindow = "  ";
+    }
     ros::Publisher p_pub;
     ros::Publisher a_pub;
     ros::Publisher u_pub;
     serial::Serial ser;
-    bool newData = false;
-    std::string inputString;
-    std::string recWindow = "..";
 
+private:
+    bool newData = false;
+    std::string recWindow = "..";
+    std::string inputString;
 };
 #endif
