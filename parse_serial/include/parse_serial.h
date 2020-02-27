@@ -18,7 +18,7 @@ public:
     void clearData()
     {
         inputString.clear();
-        bool newData = false;
+        newData = false;
         recWindow = "  ";
     }
     ros::Publisher p_pub;
